@@ -4,18 +4,20 @@ import {pathToFileURL} from 'node:url';
 export const METHOD='google-public-en-zh-v1';
 export const sourceText=item=>[item.originalTitle||item.title,item.originalSummary||item.summary];
 const chinese=text=>typeof text==='string'&&/[\u4e00-\u9fff]/.test(text);
+export function normalizeDates(text){return text.replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2}),?\s+(\d{4})\b/gi,(_,month,day,year)=>`${year}-${String(['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(month.slice(0,3).toLowerCase())+1).padStart(2,'0')}-${day.padStart(2,'0')}`);}
 export function needsTranslation(item){
  if(!item.biomedicalTopics?.length)return false;
  const [title,summary]=sourceText(item),t=item.biomedicalTranslation;
- return !(t&&t.sourceTitle===title&&t.sourceSummary===summary&&chinese(t.title)&&chinese(t.summary)&&[METHOD,'reviewed-zh'].includes(t.method));
+ return !(t&&t.sourceTitle===title&&t.sourceSummary===summary&&chinese(t.title)&&chinese(t.summary)&&[METHOD,'reviewed-zh'].includes(t.method)&&(t.dateFormatVersion===1||t.method==='reviewed-zh'||normalizeDates(title+summary)===title+summary));
 }
 export function applyTranslation(item,title,summary){
  if(!chinese(title)||!chinese(summary)||title.length>700||summary.length>2000)throw new Error('Invalid Chinese translation');
  const [sourceTitle,sourceSummary]=sourceText(item);
- return {...item,biomedicalTranslation:{title:title.trim(),summary:summary.trim(),sourceTitle,sourceSummary,method:METHOD}};
+ return {...item,biomedicalTranslation:{title:title.trim(),summary:summary.trim(),sourceTitle,sourceSummary,method:METHOD,dateFormatVersion:1}};
 }
 export async function translate(text,fetcher=fetch){
  if(chinese(text))return text;
+ text=normalizeDates(text);
  const url=new URL('https://translate.googleapis.com/translate_a/single');
  url.search=new URLSearchParams({client:'gtx',sl:'en',tl:'zh-CN',dt:'t',q:text}).toString();
  // Public translation endpoint: no availability guarantee. Cache successes and retry failures next run.
