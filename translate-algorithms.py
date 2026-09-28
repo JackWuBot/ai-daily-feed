@@ -19,6 +19,8 @@ def needs_translation(item):
 
 def apply_translation(item, summary):
     # Copy only the summary. Never accept titles, URLs or other fields from a model.
+    if re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]*\s+v?\d+(?:\.\d+)+(?:[A-Za-z0-9.-]*)?", item["summary"].strip()):
+        summary = "版本：" + item["summary"].strip() + "。"
     if not isinstance(summary, str) or not re.search(r"[\u4e00-\u9fff]", summary) or len(summary) > 1600:
         raise ValueError("Translation did not contain a usable Chinese summary")
     return {**item, "originalSummary": item["summary"], "summary": summary.strip(),
