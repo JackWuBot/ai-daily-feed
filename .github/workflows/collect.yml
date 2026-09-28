@@ -41,6 +41,10 @@ jobs:
         run: python translate-algorithms.py
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
+      - name: 将生物医药标题与摘要翻译为中文
+        run: python translate-biomedical.py
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
       - name: 保存每日内容与周报
         if: always() && steps.collection.outcome == 'success'
         run: |
