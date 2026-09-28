@@ -16,6 +16,12 @@ export const SOURCES = [
  { id:'insilico', name:'英矽智能 · 官方动态', url:'https://insilico.com/api/getfeed/?feeduid=535208427911&size=40&sort[date]=desc', home:'https://insilico.com/news', kind:'company', category:'vendor', biomedicalVendor:true, defaultTopics:['drug'], filterCorporate:true },
  { id:'absci', name:'Absci · 官方动态', url:'https://investors.absci.com/rss/news-releases.xml', home:'https://investors.absci.com/news-and-events/news-releases', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['drug','protein'], filterCorporate:true },
  { id:'recursion', name:'Recursion · 官方动态', url:'https://ir.recursion.com/rss/news-releases.xml', home:'https://ir.recursion.com/news-events/press-releases', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['drug'], filterCorporate:true },
+ { id:'tempus', name:'Tempus AI · 官方动态', url:'https://investors.tempus.com/rss/news-releases.xml', home:'https://investors.tempus.com/', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['clinical','omics'], filterCorporate:true },
+ { id:'insitro', name:'insitro · 官方动态', url:'https://www.insitro.com/feed/', home:'https://www.insitro.com/news/', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['drug'], filterCorporate:true },
+ { id:'owkin', name:'Owkin · 官方动态', url:'https://www.owkin.com/news', home:'https://www.owkin.com/news', kind:'company-page', category:'vendor', biomedicalVendor:true, defaultTopics:['drug','imaging'], filterCorporate:true },
+ { id:'abcellera', name:'AbCellera · 官方动态', url:'https://www.abcellera.com/news', home:'https://www.abcellera.com/news', kind:'company-page', category:'vendor', biomedicalVendor:true, defaultTopics:['drug','protein'], filterCorporate:true },
+ { id:'pathai', name:'PathAI · 官方动态', url:'https://www.pathai.com/news/rss.xml', home:'https://www.pathai.com/news', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['imaging'], filterCorporate:true },
+ { id:'vizai', name:'Viz.ai · 官方动态', url:'https://www.viz.ai/news/feed/', home:'https://www.viz.ai/news', kind:'rss', category:'vendor', biomedicalVendor:true, defaultTopics:['imaging','clinical'], filterCorporate:true },
  ...[
   ['drug','药物研发','"drug discovery" OR "drug design" OR "drug repurposing" OR "molecular generation" OR "binding affinity"'],
   ['protein','蛋白质与分子设计','"protein design" OR "protein structure" OR "protein folding" OR antibody OR AlphaFold'],
@@ -97,6 +103,24 @@ export function parseCompanyNews(data,source,now=Date.now()){
   return [annotateBiomedical({id:canonicalUrl(url),title,url,sourceId:source.id,source:source.name,category:'vendor',publishedAt,discoveredAt:new Date(now).toISOString(),dateBasis:'published',summary:summary||'来源未提供摘要，请打开原文查看。',summaryKind:'source',tags:tagsFor(title+' '+summary),codeUrl:'',score:0,relatedSources:[]})];
  }).slice(0,40);
 }
+export function parseCompanyPage(html,source,now=Date.now()){
+ // Read the publication date from each official news card, never the page update date.
+ const cards=source.id==='owkin'?[...html.matchAll(/<a\b[^>]*href="(\/newsfeed\/[^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map(m=>({url:m[1],body:m[2]})):
+ source.id==='abcellera'?html.split(/<div\b[^>]*class="news_item w-dyn-item"[^>]*>/i).slice(1).map(body=>({url:body.match(/href="(\/news\/[^"#]+)"/)?.[1],body})):[];
+ if(!cards.length)throw new Error('厂商新闻页面结构已变化，未找到新闻卡片');
+ const seen=new Set();return cards.flatMap(({url:link,body})=>{
+  const title=plain(source.id==='owkin'?body.match(/<[^>]*fs-cmsfilter-field="title"[^>]*>([\s\S]*?)<\//)?.[1]:body.match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/i)?.[1]);
+  const date=plain(body).match(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\b/)?.[0];
+  const publishedAt=date?iso(date+' 00:00:00 GMT'):null,url=safeUrl(link||'',source.home);
+  if(!title||!link||!url||new URL(url).origin!==new URL(source.home).origin||!publishedAt||Date.parse(publishedAt)>now||Date.parse(publishedAt)<now-30*DAY||administrativeNews(title)||seen.has(url))return [];
+  seen.add(url);return [annotateBiomedical({id:canonicalUrl(url),title,url,sourceId:source.id,source:source.name,category:'vendor',publishedAt,discoveredAt:new Date(now).toISOString(),dateBasis:'published',datePrecision:'day',summary:'官方新闻索引未提供摘要，请打开原文查看完整内容。',summaryKind:'source',tags:tagsFor(title),codeUrl:'',score:0,relatedSources:[]})];
+ }).slice(0,40);
+}
+/** Interleave sources without removing articles; input order determines priority within each source. @template T @param {T[]} items @returns {T[]} */
+export function balanceSources(items){
+ const groups=new Map();for(const item of items){const key=item.sourceId;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item);}
+ const result=[];for(let round=0;result.length<items.length;round++)for(const group of groups.values())if(group[round])result.push(group[round]);return result;
+}
 export function parsePapers(data,source,now=Date.now()) {
  if(!Array.isArray(data))throw new Error('论文数据格式不正确');
  return data.flatMap(entry=>{
@@ -149,7 +173,7 @@ export function buildWeekly(items,now=Date.now()) {
  const papers=eligible.filter(x=>x.category==='paper').slice(0,6).map(x=>x.id);
  const bio=eligible.filter(x=>biomedicalTopicsFor(x).length),biomedical=[];
  // Reserve space for both company news and research, with source diversity.
- const bioUsed=new Map();for(const item of bio.filter(x=>x.category!=='paper')){if((bioUsed.get(item.sourceId)||0)>=2)continue;biomedical.push(item.id);bioUsed.set(item.sourceId,(bioUsed.get(item.sourceId)||0)+1);if(biomedical.length===3)break;}
+ for(const item of balanceSources(bio.filter(x=>x.category!=='paper')).slice(0,3))biomedical.push(item.id);
  let selectedPapers=0;for(const topic of Object.keys(biomedicalTopics)){const item=bio.find(x=>x.category==='paper'&&!biomedical.includes(x.id)&&biomedicalTopicsFor(x).includes(topic));if(item){biomedical.push(item.id);selectedPapers++;}if(selectedPapers===3)break;}
  for(const item of bio.filter(x=>x.category==='paper')){if(selectedPapers>=3)break;if(!biomedical.includes(item.id)){biomedical.push(item.id);selectedPapers++;}}
  for(const item of bio){if(biomedical.length>=6)break;if(!biomedical.includes(item.id))biomedical.push(item.id);}
@@ -157,7 +181,7 @@ export function buildWeekly(items,now=Date.now()) {
 }
 export async function collect(previous=[],options={}) {
  const now=options.now||Date.now();const fetcher=options.fetcher||fetch;const statuses=[];const all=[];
- for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.kind==='europepmc'?europePmcUrl(source,now):source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':'application/json'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='company'?parseCompanyNews(JSON.parse(raw),source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):source.kind==='europepmc'?parseEuropePmc(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
+ for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.kind==='europepmc'?europePmcUrl(source,now):source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':source.kind==='company-page'?'text/html':'application/json'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='company-page'?parseCompanyPage(raw,source,now):source.kind==='company'?parseCompanyNews(JSON.parse(raw),source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):source.kind==='europepmc'?parseEuropePmc(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
  const items=mergeItems(previous,all,now);return {schemaVersion:1,generatedAt:new Date(now).toISOString(),items,sources:statuses,weekly:buildWeekly(items,now)};
 }
 
