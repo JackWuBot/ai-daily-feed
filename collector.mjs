@@ -124,8 +124,21 @@ export function parseEuropePmc(data,source,now=Date.now()){
  });
 }
 export function rank(item,now=Date.now()) {const age=Math.max(0,(now-Date.parse(item.publishedAt))/DAY);return Math.round(Math.max(0,40-age*3)+Math.min(12,item.tags.length*4)+(item.codeUrl?12:0)+(item.category==='paper'?Math.min(8,Math.log2(1+(item.upvotes||0))*2):8));}
+export function retainedTranslation(old,item){
+ if(old?.summaryKind!=='translated'||item.summaryKind==='translated')return {};
+ if(item.category==='algorithm')return old.originalSummary===item.summary?{summary:old.summary,summaryKind:'translated',originalSummary:old.originalSummary,translationMethod:old.translationMethod}:{originalSummary:undefined,translationMethod:undefined};
+ return {title:old.title,originalTitle:old.originalTitle,summary:old.summary,summaryKind:old.summaryKind};
+}
+export function applyCurated(items,translations){return items.map(a=>{
+ const t=translations[a.id];if(!t)return a;
+ if(a.category==='algorithm'){
+  if(!t.originalSummary||t.originalSummary!==(a.originalSummary||a.summary))return a;
+  return {...a,summary:t.summary,originalSummary:t.originalSummary,translationMethod:t.translationMethod,summaryKind:'translated'};
+ }
+ return {...a,...t,summaryKind:'translated'};
+});}
 export function mergeItems(previous,incoming,now=Date.now()) {
- const byId=new Map();for(const raw of [...previous,...incoming]){const item=annotateBiomedical(raw);if(!item.publishedAt||Date.parse(item.publishedAt)<now-120*DAY)continue;const old=byId.get(item.id);byId.set(item.id,{...old,...item,...(old?.summaryKind==='translated'&&item.summaryKind!=='translated'?{title:old.title,originalTitle:old.originalTitle,summary:old.summary,summaryKind:old.summaryKind}:{}),score:rank(item,now)});}
+ const byId=new Map();for(const raw of [...previous,...incoming]){const item=annotateBiomedical(raw);if(!item.publishedAt||Date.parse(item.publishedAt)<now-120*DAY)continue;const old=byId.get(item.id);byId.set(item.id,{...old,...item,...retainedTranslation(old,item),score:rank(item,now)});}
  const byTitle=new Map();for(const item of byId.values()){const key=item.title.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');const other=byTitle.get(key);if(key.length>20&&other&&Math.abs(Date.parse(item.publishedAt)-Date.parse(other.publishedAt))<2*DAY){if(item.sourceId!==other.sourceId){other.relatedSources=[...(other.relatedSources||[]),{name:item.source,url:item.url}].filter((s,i,a)=>a.findIndex(v=>v.url===s.url)===i);}}else byTitle.set(key+'',item);}
  return [...byTitle.values()].sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)).slice(0,2000);
 }
