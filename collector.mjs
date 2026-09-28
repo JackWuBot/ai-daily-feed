@@ -10,11 +10,37 @@ export const SOURCES = [
  { id:'ollama', name:'Ollama Releases', url:'https://github.com/ollama/ollama/releases.atom', home:'https://github.com/ollama/ollama/releases', kind:'rss', category:'application' },
  { id:'langchain', name:'LangChain Releases', url:'https://github.com/langchain-ai/langchain/releases.atom', home:'https://github.com/langchain-ai/langchain/releases', kind:'rss', category:'application' },
  { id:'qwen', name:'Qwen · 官方模型', url:'https://huggingface.co/api/models?author=Qwen&sort=createdAt&direction=-1&limit=12', home:'https://huggingface.co/Qwen', kind:'models', category:'model' },
- { id:'deepseek', name:'DeepSeek · 官方模型', url:'https://huggingface.co/api/models?author=deepseek-ai&sort=createdAt&direction=-1&limit=12', home:'https://huggingface.co/deepseek-ai', kind:'models', category:'model' }
+ { id:'deepseek', name:'DeepSeek · 官方模型', url:'https://huggingface.co/api/models?author=deepseek-ai&sort=createdAt&direction=-1&limit=12', home:'https://huggingface.co/deepseek-ai', kind:'models', category:'model' },
+ { id:'nvidia-health', name:'NVIDIA · 医疗与生命科学', url:'https://blogs.nvidia.com/blog/tag/healthcare-life-sciences/feed/', home:'https://blogs.nvidia.com/blog/tag/healthcare-life-sciences/', kind:'rss', category:'application', filterBiomedical:true },
+ ...[
+  ['drug','药物研发','"drug discovery" OR "drug design" OR "drug repurposing" OR "molecular generation" OR "binding affinity"'],
+  ['protein','蛋白质与分子设计','"protein design" OR "protein structure" OR "protein folding" OR antibody OR AlphaFold'],
+  ['imaging','医学影像','"medical imaging" OR radiology OR MRI OR "computed tomography" OR histopathology'],
+  ['clinical','临床 AI','clinical OR patient OR "electronic health record" OR hospital'],
+  ['omics','组学与生命科学','genomics OR transcriptomics OR "single cell" OR proteomics']
+ ].map(([topic,label,query])=>({id:'epmc-'+topic,name:'Europe PMC · '+label,home:'https://europepmc.org/',kind:'europepmc',category:'paper',query}))
 ];
 const DAY=86400000;
+export const biomedicalTopics={drug:'药物研发',protein:'蛋白质与分子设计',imaging:'医学影像',clinical:'临床 AI',omics:'组学与生命科学'};
+const aiTerms=/\b(?:AI|LLMs?|machine learning|deep learning|artificial intelligence|neural networks?|foundation models?|large language models?|diffusion models?|generative models?|AlphaFold|BioNeMo)\b|人工智能|机器学习|深度学习|大语言模型|大模型|生成式|神经网络|扩散模型/i;
+/** @type {Array<[string, RegExp]>} */
+const bioRules=[
+ ['drug',/\b(?:drug|pharma\w*|therapeutic\w*|molecular (?:design|generation)|binding affinity|docking)\b|药物|制药|药研|药企|分子设计|分子生成|分子对接/i],
+ ['protein',/\b(?:proteins?|antibod\w*|peptides?|enzymes?|AlphaFold|protein folding)\b|蛋白质|蛋白|抗体|多肽|酶设计/i],
+ ['imaging',/\b(?:medical imag\w*|radiolog\w*|radiograph\w*|MRI|computed tomography|histopatholog\w*|patholog\w*|chromoendoscopy|ultrasound)\b|医学影像|医疗影像|放射|病理|磁共振|超声|内镜/i],
+ ['clinical',/\b(?:clinical|patients?|hospitals?|healthcare|medical|clinicians?|physicians?|electronic health records?|EHR)\b|临床|患者|病历|医院|医疗|医学|诊疗/i],
+ ['omics',/\b(?:genom\w*|transcriptom\w*|proteom\w*|single[ -]cell|bioinformatics|gene expression|life sciences?)\b|基因组|转录组|蛋白组|单细胞|生物信息|生命科学|基因表达/i]
+];
+export function biomedicalTopicsFor(item){const text=[item.title,item.originalTitle,item.abstract,item.summary].filter(Boolean).join(' ');return aiTerms.test(text)?bioRules.filter(([,rule])=>rule.test(text)).map(([topic])=>topic):[];}
+export function annotateBiomedical(item){const topics=biomedicalTopicsFor(item);return {...item,biomedicalTopics:topics,tags:[...topics.map(t=>biomedicalTopics[t]),...(item.tags||[]).filter(t=>!Object.values(biomedicalTopics).includes(t))].slice(0,5)};}
+export function europePmcUrl(source,now=Date.now()){
+ const start=new Date(now-30*DAY).toISOString().slice(0,10),end=new Date(now).toISOString().slice(0,10);
+ const ai='"artificial intelligence" OR "machine learning" OR "deep learning" OR "large language model" OR "neural network" OR "foundation model" OR "diffusion model" OR AlphaFold';
+ const query=`TITLE_ABS:(${ai}) AND TITLE_ABS:(${source.query}) AND FIRST_PDATE:[${start} TO ${end}] AND HAS_ABSTRACT:Y sort_date:y`;
+ return 'https://www.ebi.ac.uk/europepmc/webservices/rest/search?'+new URLSearchParams({query,format:'json',resultType:'core',pageSize:'15'});
+}
 export function plain(value='') {
- return String(value).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/&#x([a-f0-9]+);/gi,(_,n)=>codePoint(parseInt(n,16))).replace(/&#(\d+);/g,(_,n)=>codePoint(Number(n))).replace(/&(amp|lt|gt|quot|apos|nbsp);/g,(_,n)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' '})[n]).replace(/\s+/g,' ').trim();
+ return String(value).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<!--[^]*?-->|<\/?[A-Za-z][^>]*>/g,' ').replace(/&#x([a-f0-9]+);/gi,(_,n)=>codePoint(parseInt(n,16))).replace(/&#(\d+);/g,(_,n)=>codePoint(Number(n))).replace(/&(amp|lt|gt|quot|apos|nbsp);/g,(_,n)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' '})[n]).replace(/\s+/g,' ').trim();
 }
 function codePoint(n){return n>0&&n<=0x10ffff?String.fromCodePoint(n):'';}
 export function safeUrl(value,base){try{const u=new URL(value,base);return u.protocol==='https:'||u.protocol==='http:'?u.href:'';}catch{return '';}}
@@ -37,6 +63,7 @@ export function parseFeed(xml,source,now=Date.now()) {
   const summary=excerpt(textTag(block,'description')||textTag(block,'summary')||textTag(block,'content:encoded')||textTag(block,'content'),280);
   if(!title||!url||!date||Date.parse(date)>now+3600000||Date.parse(date)<now-30*DAY)return [];
   if(source.filterAI&&!/\bAI\b|人工智能|大模型|智能体|机器学习|深度学习|ChatGPT|Claude|Gemini|DeepSeek|Qwen|通义|豆包|智谱|Kimi|Seedance|生成式|机器人/i.test(title))return [];
+  if(source.filterBiomedical&&!biomedicalTopicsFor({title,summary}).length)return [];
   const tags=tagsFor(title+' '+summary);
   return [{id:canonicalUrl(url),title,url,sourceId:source.id,source:source.name,category:categoryFor(title,source.category),publishedAt:date,updatedAt,discoveredAt:new Date(now).toISOString(),dateBasis:publishedAt?'published':'updated',summary:summary||'来源未提供摘要，请打开原文查看。',summaryKind:'source',tags,codeUrl:'',score:0,relatedSources:[]}];
  }).slice(0,30);
@@ -53,17 +80,40 @@ export function parseModels(data,source,now=Date.now()) {
  if(!Array.isArray(data))throw new Error('模型数据格式不正确');
  return data.flatMap(m=>{const date=iso(m.createdAt);if(!m.id||!date||Date.parse(date)>now+3600000||Date.parse(date)<now-30*DAY)return [];return [{id:'hf:'+m.id,title:m.id.split('/').slice(1).join('/'),url:'https://huggingface.co/'+m.id,sourceId:source.id,source:source.name,category:'model',publishedAt:date,updatedAt:iso(m.lastModified),dateBasis:'published',discoveredAt:new Date(now).toISOString(),summary:`${source.name.split(' · ')[0]} 新增模型仓库。${m.pipeline_tag?'任务类型：'+m.pipeline_tag+'。':''}能力、权重与使用许可请以模型卡为准。`,summaryKind:'metadata',tags:['模型仓库'],codeUrl:'',score:0,relatedSources:[]}];});
 }
+export function parseEuropePmc(data,source,now=Date.now()){
+ const results=data?.resultList?.result;if(!Array.isArray(results))throw new Error('Europe PMC 数据格式不正确');
+ return results.flatMap(p=>{
+  const publishedAt=iso(p.firstPublicationDate),title=plain(p.title),abstract=plain(p.abstractText||'');
+  const types=p.pubTypeList?.pubType||[];
+  if(!p.id||!p.source||!title||!publishedAt||Date.parse(publishedAt)>now||Date.parse(publishedAt)<now-30*DAY||types.some(t=>/retract|withdrawal/i.test(t)))return [];
+  if(!biomedicalTopicsFor({title,abstract}).length)return [];
+  const arxiv=p.doi?.match(/^10\.48550\/arxiv\.(\d+\.\d+)(?:v\d+)?$/i)?.[1];
+  const id=arxiv?'arxiv:'+arxiv:p.doi?'doi:'+p.doi.toLowerCase():`epmc:${p.source}:${p.id}`;
+  const paperStatus=p.source==='PPR'||types.some(t=>/preprint/i.test(t))?'preprint':p.journalInfo?'journal':'publication';
+  const sourceName=p.source==='MED'?'PubMed · Europe PMC':'Europe PMC';
+  return [annotateBiomedical({id,title,url:`https://europepmc.org/article/${encodeURIComponent(p.source)}/${encodeURIComponent(p.id)}`,sourceId:source.id,source:sourceName,category:'paper',publishedAt,updatedAt:null,discoveredAt:new Date(now).toISOString(),dateBasis:'published',summary:excerpt(abstract),abstract:abstract.slice(0,6500),summaryKind:'abstract',tags:tagsFor(title+' '+abstract),codeUrl:'',paperId:p.source==='MED'?'PMID: '+p.id:p.id,paperStatus,journal:plain(p.journalInfo?.journal?.title||''),doi:p.doi||'',authors:(p.authorList?.author||[]).slice(0,5).map(a=>plain(a.fullName||a.collectiveName||'')).filter(Boolean),score:0,relatedSources:[]})];
+ });
+}
 export function rank(item,now=Date.now()) {const age=Math.max(0,(now-Date.parse(item.publishedAt))/DAY);return Math.round(Math.max(0,40-age*3)+Math.min(12,item.tags.length*4)+(item.codeUrl?12:0)+(item.category==='paper'?Math.min(8,Math.log2(1+(item.upvotes||0))*2):8));}
 export function mergeItems(previous,incoming,now=Date.now()) {
- const byId=new Map();for(const item of [...previous,...incoming]){if(!item.publishedAt||Date.parse(item.publishedAt)<now-120*DAY)continue;const old=byId.get(item.id);byId.set(item.id,{...old,...item,...(old?.summaryKind==='translated'&&item.summaryKind!=='translated'?{title:old.title,originalTitle:old.originalTitle,summary:old.summary,summaryKind:old.summaryKind}:{}),score:rank(item,now)});}
+ const byId=new Map();for(const raw of [...previous,...incoming]){const item=annotateBiomedical(raw);if(!item.publishedAt||Date.parse(item.publishedAt)<now-120*DAY)continue;const old=byId.get(item.id);byId.set(item.id,{...old,...item,...(old?.summaryKind==='translated'&&item.summaryKind!=='translated'?{title:old.title,originalTitle:old.originalTitle,summary:old.summary,summaryKind:old.summaryKind}:{}),score:rank(item,now)});}
  const byTitle=new Map();for(const item of byId.values()){const key=item.title.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');const other=byTitle.get(key);if(key.length>20&&other&&Math.abs(Date.parse(item.publishedAt)-Date.parse(other.publishedAt))<2*DAY){if(item.sourceId!==other.sourceId){other.relatedSources=[...(other.relatedSources||[]),{name:item.source,url:item.url}].filter((s,i,a)=>a.findIndex(v=>v.url===s.url)===i);}}else byTitle.set(key+'',item);}
  return [...byTitle.values()].sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)).slice(0,2000);
 }
 export function weeklyWindow(now=Date.now()) {const local=new Date(now+8*3600000);const day=local.getUTCDay();let days=day===0?0:day;let end=Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate()-days,12);if(end>now)end-=7*DAY;return {start:new Date(end-7*DAY).toISOString(),end:new Date(end).toISOString(),id:new Date(end).toISOString().slice(0,10)};}
-export function buildWeekly(items,now=Date.now()) {const w=weeklyWindow(now);const eligible=items.filter(x=>x.publishedAt>=w.start&&x.publishedAt<w.end).sort((a,b)=>rank(b,Date.parse(w.end))-rank(a,Date.parse(w.end)));const news=[];const used=new Map();for(const x of eligible.filter(x=>x.category!=='paper')){if((used.get(x.sourceId)||0)>=3)continue;news.push(x.id);used.set(x.sourceId,(used.get(x.sourceId)||0)+1);if(news.length===10)break;}const papers=eligible.filter(x=>x.category==='paper').slice(0,6).map(x=>x.id);return {...w,generatedAt:new Date(now).toISOString(),news,papers,total:eligible.length,selection:'按发布时间、主题相关性、来源多样性与代码可用性筛选；社区热度仅作辅助。'};}
+export function buildWeekly(items,now=Date.now()) {
+ const w=weeklyWindow(now);const eligible=items.filter(x=>x.publishedAt>=w.start&&x.publishedAt<w.end).sort((a,b)=>rank(b,Date.parse(w.end))-rank(a,Date.parse(w.end)));
+ const news=[];const used=new Map();for(const x of eligible.filter(x=>x.category!=='paper')){if((used.get(x.sourceId)||0)>=3)continue;news.push(x.id);used.set(x.sourceId,(used.get(x.sourceId)||0)+1);if(news.length===10)break;}
+ const papers=eligible.filter(x=>x.category==='paper').slice(0,6).map(x=>x.id);
+ const bio=eligible.filter(x=>biomedicalTopicsFor(x).length),biomedical=[];
+ // Cover different research directions before filling remaining weekly slots.
+ for(const topic of Object.keys(biomedicalTopics)){const item=bio.find(x=>!biomedical.includes(x.id)&&biomedicalTopicsFor(x).includes(topic));if(item)biomedical.push(item.id);}
+ for(const item of bio){if(biomedical.length>=6)break;if(!biomedical.includes(item.id))biomedical.push(item.id);}
+ return {...w,generatedAt:new Date(now).toISOString(),news,papers,biomedical,total:eligible.length,selection:'按发布时间、主题相关性、来源多样性与代码可用性筛选；生物医药关注不同研究方向，社区热度仅作辅助。'};
+}
 export async function collect(previous=[],options={}) {
  const now=options.now||Date.now();const fetcher=options.fetcher||fetch;const statuses=[];const all=[];
- for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':'application/json'},signal:AbortSignal.timeout(14000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
+ for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.kind==='europepmc'?europePmcUrl(source,now):source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':'application/json'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):source.kind==='europepmc'?parseEuropePmc(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
  const items=mergeItems(previous,all,now);return {schemaVersion:1,generatedAt:new Date(now).toISOString(),items,sources:statuses,weekly:buildWeekly(items,now)};
 }
 
