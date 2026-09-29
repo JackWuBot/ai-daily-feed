@@ -3,7 +3,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
+    # Off-hour recovery checks at 08:17/08:47 through 11:47 Asia/Shanghai.
+    - cron: '17,47 0-3 * * *'
     - cron: '0 12 * * 0'
+    # Weekly recovery checks after the Sunday 20:00 cutoff.
+    - cron: '17,47 12-13 * * 0'
 permissions:
   contents: write
 concurrency:
@@ -18,7 +22,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - name: 检查本期内容是否已更新
+        id: freshness
+        run: node should-update.mjs
       - name: 收集公开资讯与论文
+        if: steps.freshness.outputs.needed == 'true'
         id: collection
         run: node run.mjs
         env:
@@ -26,22 +34,27 @@ jobs:
           AI_MODEL: ${{ vars.AI_MODEL }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
       - uses: actions/setup-python@v6
+        if: steps.freshness.outputs.needed == 'true'
         with:
           python-version: '3.12'
       - name: 缓存公开翻译模型
+        if: steps.freshness.outputs.needed == 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface/hub
           key: opus-en-zh-408d9bc-v1
       - name: 安装摘要翻译依赖
+        if: steps.freshness.outputs.needed == 'true'
         run: |
           python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install transformers==4.57.6 sentencepiece==0.2.1 sacremoses==0.1.1
       - name: 将算法摘要翻译为中文（保留原标题）
+        if: steps.freshness.outputs.needed == 'true'
         run: python translate-algorithms.py
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
       - name: 将生物医药标题与摘要翻译为中文
+        if: steps.freshness.outputs.needed == 'true'
         run: python translate-biomedical.py
         env:
           HF_HUB_DISABLE_TELEMETRY: '1'
