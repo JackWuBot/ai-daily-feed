@@ -5,6 +5,25 @@ export const SOURCES = [
  { id:'huggingface', name:'Hugging Face Blog', url:'https://huggingface.co/blog/feed.xml', home:'https://huggingface.co/blog', kind:'rss', category:'model' },
  { id:'microsoft', name:'Microsoft Research', url:'https://www.microsoft.com/en-us/research/feed/', home:'https://www.microsoft.com/en-us/research/blog/', kind:'rss', category:'algorithm' },
  { id:'ithome', name:'IT之家 · AI', url:'https://www.ithome.com/rss/', home:'https://www.ithome.com/', kind:'rss', category:'application', filterAI:true },
+ // Publisher-owned feeds and dated official news pages; no search-result or paywall scraping.
+ { id:'qbitai', name:'量子位', url:'https://www.qbitai.com/feed', home:'https://www.qbitai.com/', kind:'rss', category:'vendor', group:'media' },
+ { id:'leiphone', name:'雷峰网 · AI', url:'https://www.leiphone.com/feed', home:'https://www.leiphone.com/', kind:'rss', category:'vendor', group:'media', filterAI:true },
+ { id:'infoq-cn', name:'InfoQ 中文 · AI', url:'https://www.infoq.cn/feed', home:'https://www.infoq.cn/', kind:'rss', category:'algorithm', group:'media', filterAI:true },
+ { id:'techcrunch', name:'TechCrunch · AI', url:'https://techcrunch.com/category/artificial-intelligence/feed/', home:'https://techcrunch.com/category/artificial-intelligence/', kind:'rss', category:'vendor', group:'media' },
+ { id:'theverge', name:'The Verge · AI', url:'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', home:'https://www.theverge.com/ai-artificial-intelligence', kind:'rss', category:'vendor', group:'media' },
+ { id:'ars', name:'Ars Technica · AI', url:'https://feeds.arstechnica.com/arstechnica/technology-lab', home:'https://arstechnica.com/ai/', kind:'rss', category:'application', group:'media', filterAI:true },
+ { id:'mit-techreview', name:'MIT Technology Review · AI', url:'https://www.technologyreview.com/topic/artificial-intelligence/feed', home:'https://www.technologyreview.com/topic/artificial-intelligence/', kind:'rss', category:'vendor', group:'media' },
+ { id:'techmeme', name:'Techmeme · AI 热点', url:'https://www.techmeme.com/feed.xml', home:'https://www.techmeme.com/', kind:'rss', category:'vendor', group:'media', filterAI:true },
+ { id:'amd', name:'AMD · 官方公告', url:'https://ir.amd.com/news-events/press-releases/rss', home:'https://ir.amd.com/news-events/press-releases', kind:'rss', category:'vendor', group:'official', filterAI:true, filterCorporate:true },
+ { id:'nvidia-news', name:'NVIDIA · 官方公告', url:'https://nvidianews.nvidia.com/releases.xml', home:'https://nvidianews.nvidia.com/', kind:'rss', category:'vendor', group:'official', filterAI:true, filterCorporate:true },
+ { id:'nvidia-blog', name:'NVIDIA · 官方博客', url:'https://blogs.nvidia.com/feed/', home:'https://blogs.nvidia.com/', kind:'rss', category:'application', group:'official', filterAI:true },
+ { id:'google-ai', name:'Google · AI 官方动态', url:'https://blog.google/innovation-and-ai/technology/ai/rss/', home:'https://blog.google/innovation-and-ai/technology/ai/', kind:'rss', category:'model', group:'official' },
+ { id:'microsoft-blog', name:'Microsoft · 官方动态', url:'https://blogs.microsoft.com/feed/', home:'https://blogs.microsoft.com/', kind:'rss', category:'application', group:'official', filterAI:true },
+ { id:'meta', name:'Meta · AI 官方动态', url:'https://about.fb.com/news/feed/', home:'https://about.fb.com/news/', kind:'rss', category:'application', group:'official', filterAI:true },
+ { id:'aws-ai', name:'AWS · 机器学习与生成式 AI', url:'https://aws.amazon.com/blogs/machine-learning/feed/', home:'https://aws.amazon.com/blogs/machine-learning/', kind:'rss', category:'application', group:'official' },
+ { id:'mistral', name:'Mistral AI · 官方公告', url:'https://mistral.ai/news/rss', home:'https://mistral.ai/news/', kind:'rss', category:'model', group:'official' },
+ { id:'anthropic', name:'Anthropic · 官方公告', url:'https://www.anthropic.com/news', home:'https://www.anthropic.com/', kind:'publisher-page', category:'vendor', group:'official' },
+ { id:'worldlabs', name:'World Labs · 官方动态', url:'https://www.worldlabs.ai/blog', home:'https://www.worldlabs.ai/', kind:'publisher-page', category:'model', group:'official' },
  { id:'papers', name:'Hugging Face Papers', url:'https://huggingface.co/api/daily_papers?limit=50', home:'https://huggingface.co/papers', kind:'papers', category:'paper' },
  { id:'vllm', name:'vLLM Releases', url:'https://github.com/vllm-project/vllm/releases.atom', home:'https://github.com/vllm-project/vllm/releases', kind:'rss', category:'algorithm' },
  { id:'ollama', name:'Ollama Releases', url:'https://github.com/ollama/ollama/releases.atom', home:'https://github.com/ollama/ollama/releases', kind:'rss', category:'application' },
@@ -84,7 +103,15 @@ function textTag(xml,tag){const m=xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\
 function iso(value){const date=new Date(value);return !Number.isNaN(date.getTime())?date.toISOString():null;}
 function tagsFor(text){const rules=[['Agent',/\bagentic\b|\b(?:AI|LLM|autonomous|multi)[ -]agents?\b|智能体/i],['多模态',/multimodal|vision.language|多模态/i],['推理',/reasoning|inference|推理/i],['强化学习',/reinforcement|强化学习/i],['编程',/coding|code generation|编程|代码/i],['具身智能',/robot|tactile|embodied|机器人|具身/i],['图像生成',/diffusion|image generation|扩散|生图/i],['视频',/video|视频/i],['开源',/open.source|开放权重|开源/i]];return rules.filter(([,r])=>r.test(text)).map(([name])=>name).slice(0,3);}
 function administrativeNews(title){return /(?:to participate|to present|participation).*(?:investor|investment|healthcare) conferences?|inducement (?:awards|grants)|to report.*(?:financial|quarter)|to host.*earnings/i.test(title);}
-function categoryFor(text,fallback){if(/合作|融资|投资|收购|创始人|首席|CEO|黄仁勋|供应链|partnership|acquisition/i.test(text))return 'vendor';if(/chatgpt|copilot|cursor|claude code|应用|工具|app\b/i.test(text))return 'application';if(/model|gemini|gpt-|qwen|deepseek|llama|模型/i.test(text))return 'model';if(/training|inference|algorithm|reinforcement|算法|训练|研究/i.test(text))return 'algorithm';return fallback;}
+const businessNews=/收购|并购|融资|投资|合并|战略合作|\b(?:acquir(?:e[sd]?|ing)|acquisitions?|merger|funding|raises? \$|invest(?:s|ment|ing)?|strategic partnership|joining)\b/i;
+const aiEntities=/\b(?:OpenAI|Anthropic|ChatGPT|Claude|Gemini|DeepSeek|Qwen|Llama|Mistral|World Labs|Hugging Face|Cohere|Perplexity|Copilot|Bedrock)\b|李飞飞|世界模型|空间智能|通义|豆包|智谱|Kimi|Seedance|具身|机器人|人工智能|大模型|智能体|生成式/i;
+export function relevantAINews(title,summary=''){
+ if(aiTerms.test(title)||aiEntities.test(title))return true;
+ // A business headline can omit AI; use its supplied excerpt to establish relevance.
+ // Do not admit unrelated consumer products simply because the body says "AI".
+ return businessNews.test(title)&&(aiTerms.test(summary)||aiEntities.test(summary));
+}
+function categoryFor(text,fallback){if(businessNews.test(text)||/合作|创始人|首席|CEO|黄仁勋|供应链|partnership/i.test(text))return 'vendor';if(/chatgpt|copilot|cursor|claude code|应用|工具|app\b/i.test(text))return 'application';if(/model|gemini|gpt-|qwen|deepseek|llama|模型/i.test(text))return 'model';if(/training|inference|algorithm|reinforcement|算法|训练|研究/i.test(text))return 'algorithm';return fallback;}
 function excerpt(value,max=420){const t=plain(value);return t.length>max?t.slice(0,max).replace(/\s+\S*$/,'')+'…':t;}
 export function parseFeed(xml,source,now=Date.now()) {
  const blocks=xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item>|<entry(?:\s[^>]*)?>[\s\S]*?<\/entry>/gi)||[];
@@ -98,12 +125,34 @@ export function parseFeed(xml,source,now=Date.now()) {
   const date=publishedAt||updatedAt;
   const summary=excerpt(textTag(block,'description')||textTag(block,'summary')||textTag(block,'content:encoded')||textTag(block,'content'),280);
   if(!title||!url||!date||Date.parse(date)>now+3600000||Date.parse(date)<now-(source.days||30)*DAY)return [];
-  if(source.filterAI&&!/\bAI\b|人工智能|大模型|智能体|机器学习|深度学习|ChatGPT|Claude|Gemini|DeepSeek|Qwen|通义|豆包|智谱|Kimi|Seedance|生成式|机器人/i.test(title))return [];
+  if(source.filterAI&&!relevantAINews(title,summary))return [];
   if(source.filterCorporate&&administrativeNews(title))return [];
   if(source.filterBiomedical&&!biomedicalTopicsFor({title,summary,url,sourceId:source.id,category:source.category}).length)return [];
   const tags=tagsFor(title+' '+summary);
   return [{id:canonicalUrl(url),title,url,sourceId:source.id,source:source.name,category:source.biomedicalVendor?'vendor':categoryFor(title,source.category),publishedAt:date,updatedAt,discoveredAt:new Date(now).toISOString(),dateBasis:publishedAt?'published':'updated',summary:summary||'来源未提供摘要，请打开原文查看。',summaryKind:'source',tags,codeUrl:'',score:0,relatedSources:[]}];
  }).slice(0,source.authority?70:30);
+}
+export function parsePublisherPage(html,source,now=Date.now()){
+ const rows=[];let datedCards=0;
+ for(const a of html.matchAll(/<a\b[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi)){
+  const url=safeUrl(a[1],source.home),body=a[2];if(!url||new URL(url).origin!==new URL(source.home).origin)continue;
+  let title='',date='',summary='';
+  if(source.id==='anthropic'){
+   date=plain(body.match(/<time\b[^>]*>([\s\S]*?)<\/time>/i)?.[1]||'');
+   title=plain(body.match(/<h[234]\b[^>]*>([\s\S]*?)<\/h[234]>/i)?.[1]||body.match(/<span\b[^>]*class="[^"]*__title[^>]*>([\s\S]*?)<\/span>/i)?.[1]||'');
+   summary=plain(body.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1]||'');
+  }else if(source.id==='worldlabs'&&new URL(url).pathname.startsWith('/blog/')){
+   title=plain(body.match(/<h[234]\b[^>]*>([\s\S]*?)<\/h[234]>/i)?.[1]||'');
+   date=plain(body).match(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\b/)?.[0]||'';
+   const afterHeading=body.split(/<\/h[234]>/i)[1]||'';summary=plain(afterHeading.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1]||'');
+  }
+  const publishedAt=date?iso(date+' 00:00:00 GMT'):null;
+  if(!title||!publishedAt)continue;datedCards++;
+  if(Date.parse(publishedAt)>now||Date.parse(publishedAt)<now-30*DAY)continue;
+  rows.push({id:canonicalUrl(url),title,url,sourceId:source.id,source:source.name,category:categoryFor(title,source.category),publishedAt,discoveredAt:new Date(now).toISOString(),dateBasis:'published',datePrecision:'day',summary:excerpt(summary)||'官方资讯目录未提供摘要，请打开原文查看。',summaryKind:'source',tags:tagsFor(title+' '+summary),codeUrl:'',score:0,relatedSources:[]});
+ }
+ if(!datedCards)throw new Error('官方资讯页面未找到带日期的条目，请检查页面结构');
+ return [...new Map(rows.map(a=>[a.id,a])).values()].slice(0,40);
 }
 export function companyDate(value,timeZone){
  if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?$/.test(value||'')||!timeZone)return null;
@@ -189,7 +238,10 @@ export function parseEuropePmc(data,source,now=Date.now()){
   return [annotateBiomedical({id,title,url:`https://europepmc.org/article/${encodeURIComponent(p.source)}/${encodeURIComponent(p.id)}`,sourceId:source.id,source:sourceName,category:'paper',publishedAt,updatedAt:null,discoveredAt:new Date(now).toISOString(),dateBasis:'published',summary:excerpt(abstract),abstract:abstract.slice(0,6500),summaryKind:'abstract',tags:tagsFor(title+' '+abstract),codeUrl:'',paperId:p.source==='MED'?'PMID: '+p.id:p.id,paperStatus,journal:plain(p.journalInfo?.journal?.title||''),doi:p.doi||'',authors:(p.authorList?.author||[]).slice(0,5).map(a=>plain(a.fullName||a.collectiveName||'')).filter(Boolean),score:0,relatedSources:[]})];
  });
 }
-export function rank(item,now=Date.now()) {const age=Math.max(0,(now-Date.parse(item.publishedAt))/DAY);return Math.round(Math.max(0,40-age*3)+Math.min(12,item.tags.length*4)+(item.codeUrl?12:0)+(item.category==='paper'?Math.min(8,Math.log2(1+(item.upvotes||0))*2):8));}
+export function rank(item,now=Date.now()) {const age=Math.max(0,(now-Date.parse(item.publishedAt))/DAY),business=item.category==='vendor'&&businessNews.test(item.originalTitle||item.title)?14:0,official=SOURCES.find(s=>s.id===item.sourceId)?.group==='official'?3:0;return Math.round(Math.max(0,40-age*3)+Math.min(12,item.tags.length*4)+(item.codeUrl?12:0)+(item.category==='paper'?Math.min(8,Math.log2(1+(item.upvotes||0))*2):8)+business+official);}
+/** Keep relevance order while limiting each source to two stories per six-item block. @template T @param {T[]} items @returns {T[]} */
+export function diversifyNews(items){const remaining=[...items],result=[];while(remaining.length){const used=new Map();for(let slot=0;slot<6&&remaining.length;slot++){let i=remaining.findIndex(a=>(used.get(a.sourceId)||0)<2);if(i<0)i=0;const [a]=remaining.splice(i,1);result.push(a);used.set(a.sourceId,(used.get(a.sourceId)||0)+1);}}return result;}
+export function sourceGroup(source){if(source.group)return source.group;if(source.id==='ithome')return 'media';if(source.biomedicalVendor||source.biomedicalOnly||source.filterBiomedical||source.kind==='europepmc')return 'biomedical';if(source.kind==='papers')return 'papers';return 'official';}
 export function retainedTranslation(old,item){
  if(old?.summaryKind!=='translated'||item.summaryKind==='translated')return {};
  if(item.category==='algorithm')return old.originalSummary===item.summary?{summary:old.summary,summaryKind:'translated',originalSummary:old.originalSummary,translationMethod:old.translationMethod}:{originalSummary:undefined,translationMethod:undefined};
@@ -224,7 +276,7 @@ export function buildWeekly(items,now=Date.now()) {
 }
 export async function collect(previous=[],options={}) {
  const now=options.now||Date.now();const fetcher=options.fetcher||fetch;const statuses=[];const all=[];
- for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.kind==='europepmc'?europePmcUrl(source,now):source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':['company-page','news-page'].includes(source.kind)?'text/html':'application/json'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='news-page'?parseNewsPage(raw,source,now):source.kind==='company-page'?parseCompanyPage(raw,source,now):source.kind==='company'?parseCompanyNews(JSON.parse(raw),source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):source.kind==='europepmc'?parseEuropePmc(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
+ for(let i=0;i<SOURCES.length;i+=4){await Promise.all(SOURCES.slice(i,i+4).map(async source=>{try{const response=await fetcher(source.kind==='europepmc'?europePmcUrl(source,now):source.url,{headers:{'User-Agent':'AI-Daily-Radar/1.0 (public research and news reader)','Accept':source.kind==='rss'?'application/rss+xml, application/atom+xml, text/xml':['company-page','news-page','publisher-page'].includes(source.kind)?'text/html':'application/json'},signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('HTTP '+response.status);const raw=await response.text();if(raw.length>4000000)throw new Error('来源响应过大');const items=source.kind==='rss'?parseFeed(raw,source,now):source.kind==='publisher-page'?parsePublisherPage(raw,source,now):source.kind==='news-page'?parseNewsPage(raw,source,now):source.kind==='company-page'?parseCompanyPage(raw,source,now):source.kind==='company'?parseCompanyNews(JSON.parse(raw),source,now):source.kind==='papers'?parsePapers(JSON.parse(raw),source,now):source.kind==='europepmc'?parseEuropePmc(JSON.parse(raw),source,now):parseModels(JSON.parse(raw),source,now);all.push(...items);statuses.push({id:source.id,name:source.name,home:source.home,group:sourceGroup(source),ok:true,count:items.length,checkedAt:new Date(now).toISOString()});}catch(e){statuses.push({id:source.id,name:source.name,home:source.home,group:sourceGroup(source),ok:false,count:0,checkedAt:new Date(now).toISOString(),error:String(e?.message||'连接失败').slice(0,100)});}}));}
  const items=mergeItems(previous,all,now);return {schemaVersion:1,generatedAt:new Date(now).toISOString(),items,sources:statuses,weekly:buildWeekly(items,now)};
 }
 
